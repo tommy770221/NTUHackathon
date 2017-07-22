@@ -1,10 +1,13 @@
 import argparse
 import pickle
 from datetime import timedelta
+import heapq
+import json
 
 def parse():
    parser = argparse.ArgumentParser(description='all pair shortest problem')
    parser.add_argument('inputs', type=str, help='input directory')
+   parser.add_argument('target', type=str, help='input directory')
    parser.add_argument('outputs', type=str, help='input directory')
    return parser.parse_args()
 
@@ -14,40 +17,44 @@ def main():
    with open(args.inputs, 'rb') as f:
       maps = pickle.load(f)
 
-   distance_maps = maps['edge']
+   reverse_edge_map = {}
+   for edge, diff in maps['edge'].items():
+      src, dst = edge
+      if dst not in reverse_edge_map:
+         reverse_edge_map[dst] = {}
+      reverse_edge_map[dst][src] = diff
 
-   for i, _ in maps['node'].items():
-      for j, _ in maps['node'].items():
-         edge = (i, j)
-         if edge in distance_maps and i!=j:
-            v = distance_maps[edge]
-            if (i,i) in distance_maps:
-               v += distance_maps[(i,i)] / 2
-            if (j,j) in distance_maps:
-               v += distance_maps[(j,j)] / 2
-            distance_maps[edge] = v
-         elif i==j and edge not in distance_maps:
-            distance_maps[edge] = timedelta(0)
+   visited_nodes = {}
+   heap = []
+   heapq.heappush(heap, (timedelta(0), args.target))
+   while len(heap) > 0:
+      times, node = heapq.heappop(heap)
+      if node in visited_nodes:
+         continue
+      visited_nodes[node] = times
 
-   for index, (k, _) in enumerate(maps['node'].items()):
-      print(str(index) + '/' + str(len(maps['node'])))
-      for i, _ in maps['node'].items():
-         for j, _ in maps['node'].items():
-            edge_ij = (i, j)
-            edge_ik = (i, k)
-            edge_kj = (k, j)
-            if edge_ij not in distance_maps:
-               distance_maps[edge_ij] = timedelta(2000000)
-            if edge_ik not in distance_maps:
-               distance_maps[edge_ik] = timedelta(2000000)
-            if edge_kj not in distance_maps:
-               distance_maps[edge_kj] = timedelta(2000000)
-            if distance_maps[edge_ik] + distance_maps[edge_kj] < distance_maps[edge_ij]:
-               distance_maps[edge_ij] = distance_maps[edge_ik] + distance_maps[edge_kj]
+      if node in reverse_edge_map:
+         for src, diff in reverse_edge_map[node].items():
+            heapq.heappush(heap, (times + diff, src))
 
+   visited_list = []
+   for node, times in visited_nodes.items():
+      node_map = {}
+      node_map['id'] = node
+      node_map['times'] = times.total_seconds()
+      node_map['longitude'] = maps['node'][node]['longitude']
+      node_map['latitude'] = maps['node'][node]['latitude']
+      visited_list.append(node_map)
+
+   output_map = {
+      'target': args.target,
+      'longitude': maps['node'][args.target]['longitude'],
+      'latitude': maps['node'][args.target]['latitude'],
+      'nodes':visited_list
+   }
    import ipdb; ipdb.set_trace()
-   with open(args.outputs, 'wb') as out:
-      pickle.dump(distance_maps, out)
+   with open(args.outputs, 'w') as out:
+      out.write(json.dumps(output_map))
 
 
 if __name__=='__main__':
