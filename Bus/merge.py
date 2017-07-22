@@ -24,14 +24,12 @@ def main():
    index_map = {}
    merged_map = {}
 
-   cand_id = None
-
    for node in loc:
       nid = str(node['Id'])
       lon = float(node['longitude'])
       lat = float(node['latitude'])
 
-      if (cand_id is None):
+      if len(merged_map) < 1:
          cand_id = str(len(merged_map) + 1)
          merged_map[cand_id] = {
             'longitude': lon,
@@ -40,23 +38,33 @@ def main():
          index_map[nid] = cand_id
 
       else:
-         dis = math.sqrt(
-            pow(merged_map[cand_id]['longitude'] - lon, 2) + \
-            pow(merged_map[cand_id]['latitude'] - lat, 2)
-         )
-         if dis < 0.01:
-            index_map[nid] = cand_id
-            merged_map[cand_id]['longitude'] += lon
-            merged_map[cand_id]['latitude'] += lat
-            merged_map[cand_id]['longitude'] /= 2
-            merged_map[cand_id]['latitude'] /= 2
-         else:
+         add_new_node = True
+         min_dis = 1e9
+         for cand_id, _ in merged_map.items():
+            dis = math.sqrt(
+               pow(merged_map[cand_id]['longitude'] - lon, 2) + \
+               pow(merged_map[cand_id]['latitude'] - lat, 2)
+            )
+            if dis < 0.003:
+               add_new_node = False
+               if dis < min_dis:
+                  min_dis = dis
+                  new_id = cand_id
+
+         if add_new_node:
             cand_id = str(len(merged_map) + 1)
             merged_map[cand_id] = {
                'longitude': lon,
                'latitude': lat
             }
             index_map[nid] = cand_id
+         else:
+            index_map[nid] = new_id
+            merged_map[new_id]['longitude'] += lon
+            merged_map[new_id]['latitude'] += lat
+            merged_map[new_id]['longitude'] /= 2
+            merged_map[new_id]['latitude'] /= 2
+
 
    merged_graph = {}
    merged_times = {}
@@ -76,15 +84,13 @@ def main():
    for key, value in merged_graph.items():
       merged_graph[key] /= merged_times[key]
 
-   import ipdb; ipdb.set_trace()
+   merged = {'node': merged_map, 'edge': merged_graph}
+
    with open(args.outputs + '_graph', 'wb') as out:
-      pickle.dump(merged_graph, out)
+      pickle.dump(merged, out)
 
    with open(args.outputs + '_index', 'wb') as out:
       pickle.dump(index_map, out)
-
-   with open(args.outputs + '_node', 'wb') as out:
-      pickle.dump(merged_map, out)
 
 if __name__=='__main__':
    main()
