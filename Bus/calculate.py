@@ -52,7 +52,6 @@ def main():
       'latitude': maps['node'][args.target]['latitude'],
       'nodes':visited_list
    }
-   import ipdb; ipdb.set_trace()
    with open(args.outputs, 'w') as out:
       out.write(json.dumps(output_map))
 
