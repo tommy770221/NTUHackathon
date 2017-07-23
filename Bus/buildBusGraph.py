@@ -29,6 +29,8 @@ def build_edge_map(dirs, inputs, s_time, e_time):
          f.readline()
          start = None
          start_time = None
+         next_start = None
+         next_start_time = None
          for line in f:
             line = re.sub('.*\t', '', line.strip())
             if line[0:2]!='A2':
@@ -47,10 +49,13 @@ def build_edge_map(dirs, inputs, s_time, e_time):
             if stop not in node_maps:
                node_maps[stop] = 1
 
-            if (leave=='0'):
+            if leave=='1' and start is None:
                start = stop
                start_time = record_time
-            elif (leave=='1' and start is not None):
+            elif leave=='1':
+               next_start = stop
+               next_start_time = record_time
+            elif leave=='0' and start is not None and start != stop:
                edge = (start, stop)
                diff = record_time - start_time
                if edge not in edge_maps:
@@ -59,6 +64,8 @@ def build_edge_map(dirs, inputs, s_time, e_time):
                else:
                   edge_maps[edge] += diff
                   edge_times[edge] += 1
+               start = next_start
+               start_time = next_start_time
 
    for key, values in edge_maps.items():
       edge_maps[key] /= edge_times[key]
